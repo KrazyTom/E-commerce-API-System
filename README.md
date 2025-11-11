@@ -101,3 +101,9 @@ This allows non-logged-in users to manage carts seamlessly.
 **Karan (Krazy T0M)**  
 Feel free to fork, modify, or extend the API!  
 >  Suggestions and pull requests are always welcome.
+
+
+
+API Testing Collection
+
+https://.postman.co/workspace/My-Workspace~f32509b1-ee52-46cc-8c37-b177805e0b3f/collection/36003331-99a4832d-1441-41f8-80aa-25da9b574088?action=share&creator=36003331
