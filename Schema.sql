@@ -71,3 +71,25 @@ CREATE TABLE cart_items (
   FOREIGN KEY (cartId) REFERENCES carts(id) ON DELETE CASCADE,
   FOREIGN KEY (productId) REFERENCES products(id)
 );
+
+
+
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  userId INT NOT NULL,
+  totalAmount DECIMAL(10,2) NOT NULL,
+  status ENUM('pending', 'completed', 'cancelled') DEFAULT 'pending',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id)
+);
+
+CREATE TABLE order_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  orderId INT NOT NULL,
+  productId INT NOT NULL,
+  quantity INT NOT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  subtotal DECIMAL(10,2) GENERATED ALWAYS AS (price * quantity) STORED,
+  FOREIGN KEY (orderId) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (productId) REFERENCES products(id)
+);
