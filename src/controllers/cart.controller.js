@@ -1,21 +1,25 @@
-import db from '../config/db.js';
+import db from "../config/db.js";
+import { v4 as uuidv4 } from "uuid";
 
-const getOrCreateCart = async (userId) => {
+const getOrCreateCart = async (userId, sessionId) => {
   return new Promise((resolve, reject) => {
     db.query(
-      "SELECT * FROM carts WHERE userId = ? AND status = 'active' LIMIT 1",
-      [userId],
+      "SELECT * FROM carts WHERE sessionId = ? AND status = 'active' AND userId = ? LIMIT 1",
+      [sessionId, userId],
       (err, results) => {
         if (err) return reject(err);
-        if (results.length > 0) return resolve(results[0]);
 
-        // Create new active cart
+        if (results.length > 0) {
+          return resolve(results[0]);
+        }
+
+        // Create a new cart for this session
         db.query(
-          "INSERT INTO carts (userId, status) VALUES (?, 'active')",
-          [userId],
+          "INSERT INTO carts (userId, sessionId, status) VALUES (?, ?, 'active')",
+          [userId, sessionId],
           (err2, res2) => {
             if (err2) return reject(err2);
-            resolve({ id: res2.insertId, userId, status: "active" });
+            resolve({ id: res2.insertId, sessionId, status: "active" });
           }
         );
       }
@@ -25,10 +29,17 @@ const getOrCreateCart = async (userId) => {
 
 export const addToCart = async (req, res) => {
   try {
+    let sessionId = req.headers["x-session-id"];
     const { productId, quantity } = req.body;
-    const userId = req.user.id;
+     const userId = req.user.id;
 
-    const cart = await getOrCreateCart(userId);
+    
+    if (!sessionId) {
+      sessionId = uuidv4();
+      res.setHeader("x-session-id", sessionId); 
+    }
+
+    const cart = await getOrCreateCart(userId,sessionId);
 
     db.query(
       "SELECT * FROM cart_items WHERE cartId = ? AND productId = ?",
@@ -37,23 +48,29 @@ export const addToCart = async (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
 
         if (results.length > 0) {
+          // Update quantity
           const newQty = results[0].quantity + quantity;
           db.query(
             "UPDATE cart_items SET quantity = ? WHERE id = ?",
             [newQty, results[0].id],
             (err2) => {
               if (err2) return res.status(500).json({ error: err2.message });
-              res.json({ message: "Cart updated successfully" });
+              res.json({
+                message: "Cart updated successfully",
+                sessionId,
+              });
             }
           );
         } else {
-          
           db.query(
             "INSERT INTO cart_items (cartId, productId, quantity) VALUES (?, ?, ?)",
             [cart.id, productId, quantity],
             (err3) => {
               if (err3) return res.status(500).json({ error: err3.message });
-              res.status(201).json({ message: "Product added to cart" });
+              res.status(201).json({
+                message: "Product added to cart",
+                sessionId,
+              });
             }
           );
         }
@@ -64,71 +81,72 @@ export const addToCart = async (req, res) => {
   }
 };
 
-export const removeFromCart = (req, res) => {
-  const userId = req.user.id;
+export const removeFromCart = async (req, res) => {
   const { productId } = req.body;
+  const sessionId = req.headers["x-session-id"];
+  const userId = req.user.id;
+
+  if (!sessionId)
+    return res.status(400).json({ message: "Session ID is required" });
 
   db.query(
-    "SELECT id FROM carts WHERE userId = ? AND status = 'active' LIMIT 1",
-    [userId],
+    "SELECT id FROM carts WHERE sessionId = ? AND status = 'active' AND userId = ? LIMIT 1",
+    [sessionId, userId],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
-      if (results.length === 0) return res.status(404).json({ message: "Cart not found" });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Cart not found" });
 
       const cartId = results[0].id;
       db.query(
-        "UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ?",
-        [cartId, productId],
+        "UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ? AND userId = ?",
+        [cartId, productId, userId],
         (err2, result) => {
           if (err2) return res.status(500).json({ error: err2.message });
           if (result.affectedRows === 0)
-            return res.status(404).json({ message: "Item not found in cart" });
-          res.json({ message: "Product removed from cart" });
+            return res.status(404).json({ message: "Product not in cart" });
+          res.json({ message: "Product removed successfully" });
         }
       );
     }
   );
 };
 
-export const getCart = (req, res) => {
-  const userId = req.user.id;
+export const getCart = async (req, res) => {
+  const sessionId = req.headers["x-session-id"];
+
+  if (!sessionId)
+    return res.status(400).json({ message: "Session ID is required" });
 
   const sql = `
-        SELECT JSON_ARRAYAGG(
+    SELECT 
+      JSON_ARRAYAGG(
         JSON_OBJECT(
-        'name', p.name,
-        'quantity', ci.quantity,
-        'price', p.price,
-        'subtotal', (p.price * ci.quantity)
-            )
-        ) AS items,
-    COALESCE(SUM(p.price * ci.quantity), 0) AS totalPrice
+          'cartItemId', ci.id,
+          'productId', p.id,
+          'productName', p.name,
+          'quantity', ci.quantity,
+          'price', p.price,
+          'subtotal', (p.price * ci.quantity)
+        )
+      ) AS items,
+      COALESCE(SUM(p.price * ci.quantity), 0) AS totalPrice
     FROM carts c
-    LEFT JOIN cart_items ci ON ci.cartId = c.id and ci.is_deleted = 0
+    LEFT JOIN cart_items ci ON ci.cartId = c.id
     LEFT JOIN products p ON p.id = ci.productId AND p.is_deleted = 0
-    WHERE c.userId = ? AND c.status = 'active';
+    WHERE c.sessionId = ? AND c.status = 'active' AND c.userId = ?;
   `;
 
-    db.query(sql, [userId], (err, results) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (results.length === 0)
-            return res.json({ message: "Cart is empty", items: [], totalPrice: 0 });
-        res.json({ CartIteams : results });
+  db.query(sql, [sessionId, userId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const data = results[0];
+    const items = data.items ? JSON.parse(data.items) : [];
+
+    res.json({
+      sessionId,
+      items,
+      totalPrice: data.totalPrice,
     });
-};
-
-
-export const checkoutCart = (req, res) => {
-  const userId = req.user.id;
-
-  db.query(
-    "UPDATE carts SET status = 'checked_out' WHERE userId = ? AND status = 'active'",
-    [userId],
-    (err, result) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (result.affectedRows === 0)
-        return res.status(404).json({ message: "No active cart found" });
-      res.json({ message: "Checkout successful. Cart closed." });
-    }
-  );
+  });
 };

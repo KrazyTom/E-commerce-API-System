@@ -14,6 +14,5 @@ const router = express.Router();
 router.post("/add", verifyToken, validate(addToCartSchema), addToCart);
 router.post("/remove", verifyToken, validate(removeFromCartSchema), removeFromCart);
 router.get("/", verifyToken, getCart);
-router.post("/checkout", verifyToken, checkoutCart);
 
 export default router;
