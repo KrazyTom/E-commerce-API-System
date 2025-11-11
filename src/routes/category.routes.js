@@ -14,7 +14,7 @@ const router = express.Router();
 
 
 router.post("/", verifyToken, isAdmin, validate(categorySchema), createCategory);
-router.post("/:id", verifyToken, isAdmin, validate(categoryUpdateSchema), updateCategory);
+router.put("/:id", verifyToken, isAdmin, validate(categoryUpdateSchema), updateCategory);
 router.post("/:id", verifyToken, isAdmin, deleteCategory);
 
 router.get("/", listCategories);
