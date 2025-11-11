@@ -1,0 +1,25 @@
+{
+  "name": "e-commerce-api-system",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "E-commerce API System Backend APIs",
+  "homepage": "https://github.com/KrazyTom/E-commerce-API-System#readme",
+  "bugs": {
+    "url": "https://github.com/KrazyTom/E-commerce-API-System/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KrazyTom/E-commerce-API-System.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0"
+  }
+}
