@@ -5,23 +5,36 @@ export const placeOrder = async (req, res) => {
   const userId = req.user.id;
 
   try {
-   
+
     const [cartRows] = await db.promise().query(
-      `SELECT c.id AS cartId, p.id AS productId, p.price, ci.quantity, (p.price * ci.quantity) AS subtotal
+      `SELECT c.id AS cartId,ci.id as itemId, p.id AS productId, p.name, p.stockQuantity, p.price, ci.quantity, (p.price * ci.quantity) AS subtotal
        FROM carts c
-       JOIN cart_items ci ON ci.cartId = c.id
+       JOIN cart_items ci ON ci.cartId = c.id and is_deleted = 0
        JOIN products p ON ci.productId = p.id
        WHERE c.userId = ? AND c.status = 'active' AND p.is_deleted = 0`,
       [userId]
     );
     
-    await db.promise().query(`UPDATE carts SET status = 'checked_out' WHERE id = ? AND status = 'active'`, [cartRows?.[0]?.cartId]);
-
     if (cartRows.length === 0)
       return res.status(400).json({ message: "Cart is empty" });
 
+    for (const item of cartRows) {
+
+        if (item.stockQuantity < item.quantity) { 
+            await db.promise().query(`UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ?`,[item.itemId, item.productId]);
+
+            return res.status(400).json({
+              message: `Product '${item.name}' is out of stock. Removed from cart.`,
+            });
+         }
+     }
+
+
+    console.log(cartRows);
+    await db.promise().query(`UPDATE carts SET status = 'checked_out' WHERE id = ? AND status = 'active'`, [cartRows?.[0]?.cartId]);
+
     const totalAmount = cartRows.reduce((sum = 0.0, i) => sum + parseFloat(i.subtotal), 0);
-    
+
     const [orderResult] = await db.promise().query(
       "INSERT INTO orders (userId, totalAmount, status) VALUES (?, ?, 'completed')",
       [userId, totalAmount]
@@ -30,7 +43,7 @@ export const placeOrder = async (req, res) => {
     const orderId = orderResult.insertId;
 
     for (const item of cartRows) {
-      await db.promise().query(
+        await db.promise().query(
         "INSERT INTO order_items (orderId, productId, quantity, price) VALUES (?, ?, ?, ?)",
         [orderId, item.productId, item.quantity, item.price]
       );

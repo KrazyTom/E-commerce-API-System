@@ -77,7 +77,7 @@ export const removeFromCart = (req, res) => {
 
       const cartId = results[0].id;
       db.query(
-        "DELETE FROM cart_items WHERE cartId = ? AND productId = ?",
+        "UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ?",
         [cartId, productId],
         (err2, result) => {
           if (err2) return res.status(500).json({ error: err2.message });
@@ -104,7 +104,7 @@ export const getCart = (req, res) => {
         ) AS items,
     COALESCE(SUM(p.price * ci.quantity), 0) AS totalPrice
     FROM carts c
-    LEFT JOIN cart_items ci ON ci.cartId = c.id  
+    LEFT JOIN cart_items ci ON ci.cartId = c.id and ci.is_deleted = 0
     LEFT JOIN products p ON p.id = ci.productId AND p.is_deleted = 0
     WHERE c.userId = ? AND c.status = 'active';
   `;
