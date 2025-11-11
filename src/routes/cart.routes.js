@@ -2,8 +2,7 @@ import express from "express";
 import {
   addToCart,
   removeFromCart,
-  getCart,
-  checkoutCart,
+  getCart
 } from "../controllers/cart.controller.js";
 import { verifyToken } from "../middleware/auth.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
@@ -14,6 +13,5 @@ const router = express.Router();
 router.post("/add", verifyToken, validate(addToCartSchema), addToCart);
 router.post("/remove", verifyToken, validate(removeFromCartSchema), removeFromCart);
 router.get("/", verifyToken, getCart);
-router.post("/checkout", verifyToken, checkoutCart);
 
 export default router;
