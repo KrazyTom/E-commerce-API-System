@@ -14,14 +14,16 @@ export const placeOrder = async (req, res) => {
        WHERE c.userId = ? AND c.status = 'active' AND p.is_deleted = 0`,
       [userId]
     );
-    
+    console.log(cartRows);
     if (cartRows.length === 0)
       return res.status(400).json({ message: "Cart is empty" });
 
     for (const item of cartRows) {
 
         if (item.stockQuantity < item.quantity) { 
-            await db.promise().query(`UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ?`,[item.itemId, item.productId]);
+
+            console.log('inside if')
+            await db.promise().query(`UPDATE cart_items SET is_deleted = 1 WHERE id = ? AND productId = ?`,[item.itemId, item.productId]);
 
             return res.status(400).json({
               message: `Product '${item.name}' is out of stock. Removed from cart.`,

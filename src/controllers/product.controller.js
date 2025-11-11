@@ -55,9 +55,10 @@ export const getProductById = (req, res) => {
 };
 
 export const listProducts = (req, res) => {
-  const { page = 1, limit = 10, categoryId, minPrice, maxPrice } = req.query;
+  const { page = 1, limit = 10, categoryId, minPrice, maxPrice } = req.body;
+  console.log(req.body);
 
-  let sql = "SELECT * FROM products WHERE is_deleted = 0";
+  let sql = "SELECT id,name,description,price,stockQuantity,categoryId,createdAt,updatedAt FROM products WHERE is_deleted = 0";
   const params = [];
 
   if (categoryId) {

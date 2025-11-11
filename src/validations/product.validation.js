@@ -15,3 +15,12 @@ export const productUpdateSchema = Joi.object({
   stockQuantity: Joi.number().integer().min(0).optional(),
   categoryId: Joi.number().integer().optional(),
 });
+
+
+export const getProductSchema = Joi.object({
+  minPrice: Joi.number().positive().optional(),
+  maxPrice: Joi.number().positive().optional(),
+  categoryId: Joi.number().integer().optional(),
+  page: Joi.number().integer().min(1).required(),
+  limit: Joi.number().integer().min(1).required(),    
+});

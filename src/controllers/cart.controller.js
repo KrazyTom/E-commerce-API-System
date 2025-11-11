@@ -86,12 +86,13 @@ export const removeFromCart = async (req, res) => {
   const sessionId = req.headers["x-session-id"];
   const userId = req.user.id;
 
+  console.log(userId);
+
   if (!sessionId)
     return res.status(400).json({ message: "Session ID is required" });
-
   db.query(
-    "SELECT id FROM carts WHERE sessionId = ? AND status = 'active' AND userId = ? LIMIT 1",
-    [sessionId, userId],
+    `SELECT id FROM carts WHERE sessionId = '${sessionId}' AND status = 'active' AND userId = ${userId} LIMIT 1`,
+    [],
     (err, results) => {
       if (err) return res.status(500).json({ error: err.message });
       if (results.length === 0)
@@ -99,8 +100,8 @@ export const removeFromCart = async (req, res) => {
 
       const cartId = results[0].id;
       db.query(
-        "UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ? AND userId = ?",
-        [cartId, productId, userId],
+        "UPDATE cart_items SET is_deleted = 1 WHERE cartId = ? AND productId = ?",
+        [cartId, productId],
         (err2, result) => {
           if (err2) return res.status(500).json({ error: err2.message });
           if (result.affectedRows === 0)
@@ -114,6 +115,7 @@ export const removeFromCart = async (req, res) => {
 
 export const getCart = async (req, res) => {
   const sessionId = req.headers["x-session-id"];
+  const userId = req.user.id;
 
   if (!sessionId)
     return res.status(400).json({ message: "Session ID is required" });
@@ -136,12 +138,22 @@ export const getCart = async (req, res) => {
     LEFT JOIN products p ON p.id = ci.productId AND p.is_deleted = 0
     WHERE c.sessionId = ? AND c.status = 'active' AND c.userId = ?;
   `;
-
   db.query(sql, [sessionId, userId], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const data = results[0];
-    const items = data.items ? JSON.parse(data.items) : [];
+   let items = [];
+    if (data.items) {
+      if (typeof data.items === 'string') {
+        try {
+          items = JSON.parse(data.items);
+        } catch (e) {
+          console.error('Error parsing items JSON:', e.message);
+        }
+      } else if (Array.isArray(data.items)) {
+        items = data.items;
+      }
+    }
 
     res.json({
       sessionId,

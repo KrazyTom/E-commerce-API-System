@@ -8,7 +8,7 @@ import {
 } from "../controllers/product.controller.js";
 import { verifyToken, isAdmin } from "../middleware/auth.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
-import { productSchema, productUpdateSchema } from "../validations/product.validation.js";
+import { productSchema, productUpdateSchema,getProductSchema } from "../validations/product.validation.js";
 
 
 //Admin APIs
@@ -18,7 +18,7 @@ router.put("/:id", verifyToken, isAdmin, validate(productUpdateSchema), updatePr
 router.post("/:id", verifyToken, isAdmin, deleteProduct);
 
 //Cutomer API
-router.get("/", verifyToken, listProducts);
+router.get("/", verifyToken,validate(getProductSchema), listProducts);
 router.get("/:id", verifyToken, getProductById);
 
 export default router;
